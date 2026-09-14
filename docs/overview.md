@@ -1,0 +1,16 @@
+---
+title: Overview
+description: What llmfy-guardrails is and which guardrails are available.
+---
+
+# Guardrails
+
+Guardrails protect your application by inspecting and sanitizing text before it reaches an LLM or after it comes back — detecting sensitive content, replacing it with a safe placeholder, and (where supported) restoring it later.
+
+Guardrails in `llmfy-guardrails` are independent of `llmfy`'s chat/generation API (`LLMfy`) and workflow engine (`FlowEngine`) — they operate on plain strings, so you can use them anywhere in your pipeline: before building a prompt, after receiving a model response, or in any text-processing step in between.
+
+## Available Guardrails
+
+| Guardrail | Description |
+|---|---|
+| [PII Guard](pii-guard.md) | Detects and replaces Personally Identifiable Information (emails, phone numbers, national IDs, credit cards, etc.) using regex for most types, plus an optional spaCy NER model for person names and addresses. Supports one-way masking (`PARTIAL`, `MASK`, `REDACT`) and reversible tokenization (`TOKENIZE` + `restore()`), plus custom, domain-specific PII patterns. |
