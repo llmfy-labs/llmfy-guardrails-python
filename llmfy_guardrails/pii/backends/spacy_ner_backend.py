@@ -1,6 +1,5 @@
 from typing import ClassVar
 
-from llmfy.exception.llmfy_exception import LLMfyException
 from llmfy_guardrails.pii.backends.base_ner_backend import BaseNERBackend, NEREntity
 
 try:
@@ -21,12 +20,13 @@ class SpacyNERBackend(BaseNERBackend):
 
     def __init__(self) -> None:
         if xx_ent_pii_sm is None:
-            raise LLMfyException(
+            raise ImportError(
                 "xx_ent_pii_sm package is not installed. It is required to "
                 "detect PERSON_NAME/ADDRESS PII. Install spaCy with "
-                '`pip install "llmfy[spacy]"`, then install the model with '
-                "`pip install https://github.com/irufano/spacy_ner_pii/"
-                "releases/download/v0.1.0/xx_ent_pii_sm-0.1.0-py3-none-any.whl`. "
+                '`pip install "llmfy-guardrails[spacy]"`, then install the '
+                "model with `pip install https://github.com/irufano/"
+                "spacy_ner_pii/releases/download/v0.1.0/"
+                "xx_ent_pii_sm-0.1.0-py3-none-any.whl`. "
                 "Alternatively, exclude these two types: "
                 "PIIGuard(exclude_types=[PIIType.PERSON_NAME, PIIType.ADDRESS])."
             )

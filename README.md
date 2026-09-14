@@ -8,7 +8,7 @@
 
 </div>
 
-`llmfy-guardrails` is the guardrails plugin for [`llmfy`](https://github.com/llmfy-labs/llmfy-python): `PIIGuard`, a text-based PII detector/masker (`PIIType`, `PIIStrategy`, `PIIDetection`/`PIIDetectionResult`), independent of the LLM/flow layers in the core package.
+`llmfy-guardrails` is a standalone text-based PII detector/masker (`PIIGuard`, `PIIType`, `PIIStrategy`, `PIIDetection`/`PIIDetectionResult`). It has no dependency on [`llmfy`](https://github.com/llmfy-labs/llmfy-python) or any other LLM framework — drop it into any Python pipeline that needs to detect or mask PII in plain text.
 
 ## How to install
 
@@ -20,7 +20,7 @@ uv add llmfy-guardrails
 pip install llmfy-guardrails
 ```
 
-Installing `llmfy-guardrails` pulls in `llmfy` (for the shared `LLMfyException` hierarchy) and `pydantic` automatically.
+Installing `llmfy-guardrails` pulls in `pydantic` automatically — nothing else.
 
 ### PII Guard — PERSON_NAME / ADDRESS detection
 

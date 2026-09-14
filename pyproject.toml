@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "llmfy-guardrails"
 dynamic = ["version"]
-description = "Guardrails plugin for `llmfy` — PII detection and masking (PIIGuard)."
+description = "Standalone PII detection and masking guardrails for text pipelines (PIIGuard)."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
@@ -15,7 +15,6 @@ authors = [
 keywords = [
     "llm",
     "ai",
-    "llmfy",
     "guardrails",
     "pii",
     "privacy",
@@ -30,7 +29,6 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "llmfy",
     "pydantic",
 ]
 
