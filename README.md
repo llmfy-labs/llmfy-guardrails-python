@@ -2,7 +2,7 @@
 
   <a href="https://img.shields.io/github/actions/workflow/status/llmfy-labs/llmfy-guardrails-python/release.yml">![llmfy-guardrails](https://img.shields.io/github/actions/workflow/status/llmfy-labs/llmfy-guardrails-python/release.yml?style=for-the-badge&logo=pypi&logoColor=blue&label=publish
   )</a>
-  <a href="https://pypi.org/project/llmfy-guardrails/0.0.0">![llmfy-guardrails](https://img.shields.io/badge/llmfy--guardrails-v0.0.0-31CA9C.svg?style=for-the-badge&logo=pypi&logoColor=yellow)</a>
+  <a href="https://pypi.org/project/llmfy-guardrails/0.1.0">![llmfy-guardrails](https://img.shields.io/badge/llmfy--guardrails-v0.1.0-31CA9C.svg?style=for-the-badge&logo=pypi&logoColor=yellow)</a>
   <a href="https://pypi.org/project/llmfy-guardrails/">![llmfy-guardrails](https://img.shields.io/pypi/v/llmfy-guardrails?style=for-the-badge&label=latest&labelColor=691DC6&color=B77309)</a>
   <a href="">![python](https://img.shields.io/badge/python->=3.11-4392FF.svg?style=for-the-badge&logo=python&logoColor=4392FF)</a>
 
