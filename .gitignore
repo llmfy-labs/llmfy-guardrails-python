@@ -1,0 +1,61 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.env
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# IDE / Editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# AI agent context files
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+QWEN.md
+WARP.md
+.clinerules
+.cursorrules
+.windsurfrules
+.roo/
+.amazonq/
+CONVENTIONS.md
+.github/copilot-instructions.md
+
+# Logs and databases
+*.log
+*.sqlite3
+
+# Docker
+docker-compose.override.yml
+.dockerignore
+*.tar
+
+__pycache__
+
+.DS_Store
+
+site/
+.cache/
+
+# UV
+uv.lock
+
+# Auto-generated version file
+llmfy_guardrails/_version.py

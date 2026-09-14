@@ -1,0 +1,208 @@
+name: Release & Publish
+
+# Triggered by the Auto Tag workflow's completion rather than the tag push
+# itself: auto-tag.yml pushes tags using the default GITHUB_TOKEN, and
+# GitHub does not let a GITHUB_TOKEN-authenticated push fan out to other
+# workflows (anti-recursion guard) -- so a `push: tags: v*` trigger here
+# would never fire. workflow_run has no such restriction.
+on:
+  workflow_run:
+    workflows: ["Auto Tag"]
+    types: [completed]
+  # Alternative: Manual trigger
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag version (e.g., v0.1.0)'
+        required: true
+        default: 'v0.1.0'
+
+jobs:
+  # Step 0: Auto Tag runs on every push to main but only actually creates a
+  # tag when there's a feat/fix/breaking-changes commit to release. Find out
+  # whether this run's commit got tagged, so a no-op Auto Tag run doesn't
+  # cascade into a release.
+  check-tag:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.find_tag.outputs.tag }}
+      should_release: ${{ steps.find_tag.outputs.should_release }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
+
+    - name: Find tag for this run
+      id: find_tag
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          TAG="${{ github.event.inputs.tag }}"
+        else
+          TAG=$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 || true)
+        fi
+
+        if [ -z "$TAG" ]; then
+          echo "No release tag on this commit; skipping release."
+          echo "should_release=false" >> $GITHUB_OUTPUT
+        else
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "should_release=true" >> $GITHUB_OUTPUT
+        fi
+
+  # Step 1: Update version badge in README.md
+  update-version:
+    needs: check-tag
+    if: needs.check-tag.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.get_tag.outputs.tag }}
+      version: ${{ steps.get_tag.outputs.version }}
+      commit_sha: ${{ steps.push_update.outputs.commit_sha }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || 'main' }}
+
+    - name: Get tag name
+      id: get_tag
+      run: |
+        TAG="${{ needs.check-tag.outputs.tag }}"
+        echo "tag=${TAG}" >> $GITHUB_OUTPUT
+        echo "version=${TAG#v}" >> $GITHUB_OUTPUT
+
+    - name: Update version badge
+      run: |
+        VERSION=${{ steps.get_tag.outputs.version }}
+        sed -i "s|llmfy--guardrails-v[0-9]*\.[0-9]*\.[0-9]*-31CA9C|llmfy--guardrails-v${VERSION}-31CA9C|g" README.md
+        sed -i "s|llmfy-guardrails/[0-9]*\.[0-9]*\.[0-9]*\"|llmfy-guardrails/${VERSION}\"|g" README.md
+
+    - name: Commit and push version badge update
+      id: push_update
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add README.md
+        if git diff --cached --quiet; then
+          echo "commit_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+        else
+          git commit -m "chore: update version badge to ${{ steps.get_tag.outputs.tag }}"
+          git push origin HEAD:main
+          # Move tag to the updated commit
+          TAG=${{ steps.get_tag.outputs.tag }}
+          git tag -f "${TAG}"
+          git push origin "${TAG}" --force
+          echo "commit_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+        fi
+
+  # Step 2: Build and publish to PyPI (checkout the tag for correct version)
+  publish:
+    needs: update-version
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.update-version.outputs.tag }}
+        fetch-depth: 0
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        version: "latest"
+
+    - name: Set up Python
+      run: uv python install 3.12
+
+    - name: Build package
+      run: uv build
+
+    - name: Publish to PyPI
+      env:
+        UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+      run: uv publish
+
+  # Step 3: Create GitHub Release (after publish)
+  create-release:
+    needs: [update-version, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
+
+    - name: Fetch updated tags
+      run: git fetch --tags --force
+
+    - name: Generate changelog
+      id: changelog
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        CURRENT_TAG=${{ needs.update-version.outputs.tag }}
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 ${CURRENT_TAG}^ 2>/dev/null || echo "")
+
+        if [ -z "$PREVIOUS_TAG" ]; then
+          RANGE=""
+          COMPARE_URL="https://github.com/${{ github.repository }}/commits/${CURRENT_TAG}"
+        else
+          RANGE="${PREVIOUS_TAG}..${CURRENT_TAG}"
+          COMPARE_URL="https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${CURRENT_TAG}"
+        fi
+
+        CHANGELOG=""
+        while IFS= read -r sha; do
+          [ -z "$sha" ] && continue
+          subject=$(git log -1 --format="%s" "$sha")
+          author=$(git log -1 --format="%an" "$sha")
+          body=$(git log -1 --format="%b" "$sha")
+          author_login=$(gh api "repos/${{ github.repository }}/commits/${sha}" --jq '.author.login // empty' 2>/dev/null || echo "")
+          if [ -n "$author_login" ]; then
+            author_display="[${author}](https://github.com/${author_login})"
+          else
+            author_display="${author}"
+          fi
+          CHANGELOG="${CHANGELOG}- ${subject} (${author_display})"$'\n'
+          if [ -n "$body" ]; then
+            CHANGELOG="${CHANGELOG}"$'\n'
+            CHANGELOG="${CHANGELOG}$(echo "$body" | sed 's/^/    /')"$'\n'
+          fi
+          CHANGELOG="${CHANGELOG}"$'\n'
+        done < <(git log ${RANGE} --reverse --no-merges --pretty=tformat:"%H")
+
+        if [ -z "$CHANGELOG" ]; then
+          CHANGELOG="- Initial release"
+        fi
+
+        {
+          echo "changelog<<CHANGELOG_EOF"
+          echo "$CHANGELOG"
+          echo "CHANGELOG_EOF"
+        } >> $GITHUB_OUTPUT
+        echo "compare_url=${COMPARE_URL}" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ needs.update-version.outputs.tag }}
+        name: Release - LLMfy Guardrails ${{ needs.update-version.outputs.tag }}
+        body: |
+          ## What's Changed
+
+          ${{ steps.changelog.outputs.changelog }}
+
+          **Full Changelog**: ${{ steps.changelog.outputs.compare_url }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
